@@ -1,57 +1,57 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useEffect, useRef, useState } from 'react';
-
-const ReproductorMusica = ({ canciones }) => {
-  const [indiceCancionActual, setIndiceCancionActual] = useState(0);
-  const [estaSonando, setEstaSonando] = useState(false);
-  const audioRef = useRef(null); // Referencia al elemento <audio>
-
-  const playSong = () => {
-    setEstaSonando(true); // Cambiar el estado a "reproduciendo"
-  };
-
-  const pauseSong = () => {
-    setEstaSonando(false); // Cambiar el estado a "pausado"
-  };
-
-  const nextSong = () => {
-    setIndiceCancionActual((prev) => (prev + 1) % canciones.length); // Siguiente canción
-  };
-
-  const prevSong = () => {
-    setIndiceCancionActual((prev) => (prev - 1 + canciones.length) % canciones.length); // Canción anterior
-  };
-
-  // Reproduce o pausa la canción según el estado "estaSonando"
-  useEffect(() => {
-    if (estaSonando) {
-      audioRef.current.play(); // Reproduce la canción
-    } else {
-      audioRef.current.pause(); // Pausa la canción
-    }
-  }, [indiceCancionActual, estaSonando]);
-
-  return (
-    <div>
-      <h2>Sonando ahora: {canciones[indiceCancionActual].title}</h2>
-      <audio ref={audioRef} src={canciones[indiceCancionActual].url}></audio>
-      <div>
-        <button onClick={playSong}>Play</button>
-        <button onClick={pauseSong}>Pause</button>
-        <button onClick={prevSong}>Previous</button>
-        <button onClick={nextSong}>Next</button>
-      </div>
-    </div>
-  );
-};
+import ReproductorMusica from './ReproductorMusica';
+import { obtenerPlayList } from './firebase/firestoreFunctions'
+import { obtenerURLCancion } from "./firebase/firebaseStorage";
 
 const App = () => {
-  const canciones = [
-    { title: '13-01-24', url: '../src/assets/music/13-01-24.mp3' },
-    { title: 'Song 2', url: '/song2.mp3' },
-    // Puedes agregar más canciones
-  ];
+    const [canciones, setCanciones] = useState([]);
 
-  return <ReproductorMusica canciones={canciones} />;
+    /*
+    useEffect(() => {
+        const iniciarPlayList = async () => {
+            try {
+                await agregarPlayList([
+                    { title: 'Song 1', url: './assets/music/13-01-24.mp3' },
+                    { title: 'Song 2', url: './assets/music/exotic-sax-loop-lounge-mixed_120bpm.wav' }
+                ]);
+            } catch (error) {
+                console.error("Error al agregar playlist", error);
+            }
+        };
+        iniciarPlayList();
+    }, []);
+    */
+
+    useEffect(() => {
+
+        const buscarPlayLists = async () => {
+            try {
+                const playlists = await obtenerPlayList();
+                const cancionresConUrl = await Promise.all(
+                    playlists[0] ?.canciones.map(async (cancion) =>{
+                        const url = await obtenerURLCancion(cancion.url);
+                        return {...cancion, url};
+                    }) || []
+                );
+                setCanciones(cancionresConUrl);
+            } catch (error) {
+                console.error("Error al obtener la playlist", error)
+            }
+        };
+        buscarPlayLists();
+    }, []);
+
+    return (
+        <div>
+            {canciones.length > 0 ? (
+                <ReproductorMusica canciones={canciones} />
+            ) : (
+                <div>Cargando playlist...</div>
+            )}
+        </div>
+    )
+
 };
 
 export default App;
